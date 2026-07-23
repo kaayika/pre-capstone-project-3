@@ -7,21 +7,12 @@ __pycache__/
 *.pyc
 
 # Airflow runtime files
-logs/*
-!logs/.gitkeep
+logs/
 *.log
 
-# Local source data
-source/*
-!source/.gitkeep
-
-# Local data lake output
-data_lake/raw/taxi_trips/*
-!data_lake/raw/taxi_trips/.gitkeep
-data_lake/staging/*
-!data_lake/staging/.gitkeep
-data_lake/processed/*
-!data_lake/processed/.gitkeep
+# Local data
+data_lake/
+source/
 
 # Editor dan sistem
 .vscode/
