@@ -1,0 +1,126 @@
+name: pre-capstone-project-3
+
+services:
+  # ==========================================================
+  # PostgreSQL untuk metadata internal Airflow
+  # ==========================================================
+  airflow-db:
+    image: postgres:16
+    container_name: precapstone-airflow-db
+
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U airflow -d airflow
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    restart: unless-stopped
+
+  # ==========================================================
+  # PostgreSQL khusus data Taxi
+  # ==========================================================
+  warehouse-db:
+    image: postgres:16
+    container_name: precapstone-warehouse-db
+
+    environment:
+      POSTGRES_DB: ${WAREHOUSE_DB}
+      POSTGRES_USER: ${WAREHOUSE_USER}
+      POSTGRES_PASSWORD: ${WAREHOUSE_PASSWORD}
+
+    ports:
+      - "${WAREHOUSE_PORT}:5432"
+
+    volumes:
+      - warehouse_db_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${WAREHOUSE_USER} -d ${WAREHOUSE_DB}
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    restart: unless-stopped
+
+  # ==========================================================
+  # Apache Airflow lokal
+  # ==========================================================
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: precapstone-airflow
+
+    command: standalone
+
+    user: "${AIRFLOW_UID:-50000}:0"
+
+    environment:
+      # Koneksi Airflow ke metadata database
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+        postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+
+      # Konfigurasi utama Airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+
+      # Akun login Airflow
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: "admin:admin"
+
+      # Agar DAG dapat mengimpor script pipeline
+      PYTHONPATH: /opt/airflow/scripts
+
+      # Koneksi ke PostgreSQL Taxi warehouse
+      WAREHOUSE_HOST: warehouse-db
+      WAREHOUSE_PORT: "5432"
+      WAREHOUSE_DB: ${WAREHOUSE_DB}
+      WAREHOUSE_USER: ${WAREHOUSE_USER}
+      WAREHOUSE_PASSWORD: ${WAREHOUSE_PASSWORD}
+
+      # Lokasi file di dalam container
+      SOURCE_FILE: /opt/airflow/source/taxi_trips.parquet
+      RAW_FILE: >-
+        /opt/airflow/data_lake/raw/taxi_trips/taxi_trips.parquet
+
+      MAX_ROWS: ${MAX_ROWS}
+
+    ports:
+      - "8084:8080"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./sql:/opt/airflow/sql
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./source:/opt/airflow/source:ro
+      - ./data_lake:/opt/airflow/data_lake
+
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+
+      warehouse-db:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+volumes:
+  airflow_db_data:
+  warehouse_db_data:

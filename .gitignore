@@ -1,0 +1,30 @@
+cat > .gitignore <<'EOF'
+# Environment dan credential
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Airflow runtime files
+logs/*
+!logs/.gitkeep
+*.log
+
+# Local source data
+source/*
+!source/.gitkeep
+
+# Local data lake output
+data_lake/raw/taxi_trips/*
+!data_lake/raw/taxi_trips/.gitkeep
+data_lake/staging/*
+!data_lake/staging/.gitkeep
+data_lake/processed/*
+!data_lake/processed/.gitkeep
+
+# Editor dan sistem
+.vscode/
+.idea/
+.DS_Store
+EOF
